@@ -1,0 +1,19 @@
+{
+  "name": "myexpress",
+  "version": "0.0.1",
+  "description": "My toy express app.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "express-app"
+  ],
+  "devDependencies": {
+    "mocha": "^1.18.2",
+    "chai": "^1.9.1",
+    "supertest": "^0.10.0"
+  },
+  "author": "Zhou Xiong",
+  "license": "MIT"
+}
