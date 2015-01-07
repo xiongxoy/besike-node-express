@@ -1,9 +1,21 @@
 module.exports = myexpress;
 
+var http = require('http');
+
 function myexpress() {
-  var ret = function (request, response) {
+  var app = function (request, response) {
     response.statusCode = 404;
     response.end();
   };
-  return ret;
+
+  app.listen = function (port, done) {
+    var server =  http.createServer(app);
+    server.listen(port);
+    if (done) {
+      done();
+    }
+    return server;
+  };
+
+  return app;
 }
