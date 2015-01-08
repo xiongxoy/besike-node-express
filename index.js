@@ -10,10 +10,7 @@ function myexpress() {
 
   app.listen = function (port, done) {
     var server =  http.createServer(app);
-    server.listen(port);
-    if (done) {
-      done();
-    }
+    server.listen(port, done);
     return server;
   };
 
