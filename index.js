@@ -48,8 +48,7 @@ function myexpress() {
     function callWithoutError(next) {
       for (; stackIndex < app.stack.length; stackIndex++) {
         if (app.stack[stackIndex].length == 3) {
-          stackIndex += 1;
-          app.stack[stackIndex-1](request, response, next);
+          app.stack[stackIndex++](request, response, next);
         }
       }
       end(404);
@@ -58,13 +57,13 @@ function myexpress() {
     function callWithError(next, error) {
       for (; stackIndex < app.stack.length; stackIndex++) {
         if (app.stack[stackIndex].length == 4) {
-          stackIndex += 1;
-          app.stack[stackIndex-1](error, request, response, next);
+          app.stack[stackIndex++](error, request, response, next);
         }
       }
       end(500, error)
     }
-  } // end of function app(request, response);
+
+  } // end of function app(request, response, next2);
 
   app.listen = function (port, done) {
     var server =  http.createServer(app);
