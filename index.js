@@ -48,7 +48,7 @@ function myexpress() {
 
     function callWithoutError(next) {
       for (; stackIndex < app.stack.length; stackIndex++) {
-        if (app.stack[stackIndex].handle.length <= 3 &&
+        if (!isErrorHandler(app.stack[stackIndex].handle) &&
             app.stack[stackIndex].match(request.url)) {
           app.stack[stackIndex++].handle(request, response, next);
           break;
@@ -59,13 +59,17 @@ function myexpress() {
 
     function callWithError(next, error) {
       for (; stackIndex < app.stack.length; stackIndex++) {
-        if (app.stack[stackIndex].handle.length >= 4 &&
+        if (isErrorHandler(app.stack[stackIndex].handle) &&
             app.stack[stackIndex].match(request.url)) {
           app.stack[stackIndex++].handle(error, request, response, next);
         break;
         }
       }
       end(500, error);
+    }
+
+    function isErrorHandler(fn) {
+      return fn.length >= 4;
     }
 
   } // end of function app(request, response, next2);
