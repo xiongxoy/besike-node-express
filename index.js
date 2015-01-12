@@ -51,7 +51,7 @@ function myexpress() {
         if (!isErrorHandler(app.stack[stackIndex].handle) &&
             app.stack[stackIndex].match(request.url)) {
           app.stack[stackIndex++].handle(request, response, next);
-          break;
+          return;
         }
       }
       end(404);
@@ -62,7 +62,7 @@ function myexpress() {
         if (isErrorHandler(app.stack[stackIndex].handle) &&
             app.stack[stackIndex].match(request.url)) {
           app.stack[stackIndex++].handle(error, request, response, next);
-        break;
+          return;
         }
       }
       end(500, error);
