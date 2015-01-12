@@ -49,6 +49,7 @@ function myexpress() {
       for (; stackIndex < app.stack.length; stackIndex++) {
         if (app.stack[stackIndex].length == 3) {
           app.stack[stackIndex++](request, response, next);
+          break;
         }
       }
       end(404);
@@ -58,6 +59,7 @@ function myexpress() {
       for (; stackIndex < app.stack.length; stackIndex++) {
         if (app.stack[stackIndex].length == 4) {
           app.stack[stackIndex++](error, request, response, next);
+          break;
         }
       }
       end(500, error)
