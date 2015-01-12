@@ -1,6 +1,7 @@
 module.exports = myexpress;
 
 var http = require('http');
+var Layer = require('./lib/layer.js');
 
 function myexpress() {
 
@@ -47,8 +48,9 @@ function myexpress() {
 
     function callWithoutError(next) {
       for (; stackIndex < app.stack.length; stackIndex++) {
-        if (app.stack[stackIndex].length == 3) {
-          app.stack[stackIndex++](request, response, next);
+        if (app.stack[stackIndex].handle.length <= 3 &&
+            app.stack[stackIndex].match(request.url)) {
+          app.stack[stackIndex++].handle(request, response, next);
           break;
         }
       }
@@ -57,12 +59,13 @@ function myexpress() {
 
     function callWithError(next, error) {
       for (; stackIndex < app.stack.length; stackIndex++) {
-        if (app.stack[stackIndex].length == 4) {
-          app.stack[stackIndex++](error, request, response, next);
-          break;
+        if (app.stack[stackIndex].handle.length >= 4 &&
+            app.stack[stackIndex].match(request.url)) {
+          app.stack[stackIndex++].handle(error, request, response, next);
+        break;
         }
       }
-      end(500, error)
+      end(500, error);
     }
 
   } // end of function app(request, response, next2);
@@ -73,9 +76,13 @@ function myexpress() {
     return server;
   };
 
-  app.use = function (middleware) {
+  app.use = function (path, middleware) {
+    if (typeof path == 'function') {
+      middleware = path;
+      path = '/';
+    }
     app.stack = app.stack || [];
-    app.stack.push(middleware);
+    app.stack.push(new Layer(path, middleware));
   }
 
   return app;
