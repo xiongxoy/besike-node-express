@@ -2,6 +2,7 @@ module.exports = express;
 
 var http = require('http');
 var Layer = require('./lib/layer.js');
+var p2re = require("path-to-regexp");
 
 function express() {
     'use strict';
@@ -10,6 +11,7 @@ function express() {
 
         var stackIndex;
         (function startApp() {
+            request.params = {};
             stackIndex = 0; // index for stack
             try {
                 next();
@@ -46,9 +48,11 @@ function express() {
         }
 
         function callWithoutError(next) {
+            var m;
             for (; stackIndex < app.stack.length; stackIndex++) {
                 if (!isErrorHandler(app.stack[stackIndex].handle) &&
-                    app.stack[stackIndex].match(request.url)) {
+                    (m = app.stack[stackIndex].match(request.url))) {
+                    request.params = m.params;
                     app.stack[stackIndex++].handle(request, response, next);
                     return;
                 }
@@ -57,9 +61,11 @@ function express() {
         }
 
         function callWithError(next, error) {
+            var m;
             for (; stackIndex < app.stack.length; stackIndex++) {
                 if (isErrorHandler(app.stack[stackIndex].handle) &&
-                    app.stack[stackIndex].match(request.url)) {
+                    (m = app.stack[stackIndex].match(request.url))) {
+                    request.params = m.params;
                     app.stack[stackIndex++].handle(error, request, response, next);
                     return;
                 }

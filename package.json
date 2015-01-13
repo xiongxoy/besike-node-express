@@ -15,5 +15,8 @@
     "supertest": "^0.10.0"
   },
   "author": "Zhou Xiong",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "path-to-regexp": "^0.1.2"
+  }
 }
