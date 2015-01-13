@@ -1,95 +1,92 @@
-module.exports = myexpress;
+module.exports = express;
 
 var http = require('http');
 var Layer = require('./lib/layer.js');
 
-function myexpress() {
+function express() {
+    'use strict';
 
-  var app = function (request, response, next2) {
-    var stackIdx;
+    var app = function (request, response, next2) {
 
-    (function startApp() {
-      if (app.stack && app.stack[0]) { // app not empty
-        stackIndex = 0; // index for stack
-        try {
-          next();
-        } catch(error) {
-          end(500, error);
+        var stackIndex;
+        (function startApp() {
+            stackIndex = 0; // index for stack
+            try {
+                next();
+            } catch (error) {
+                end(500, error);
+            }
+        }());
+
+        function next(error) {
+            if (!error) {
+                callWithoutError(next);
+            } else {
+                callWithError(next, error);
+            }
         }
-      } else {                        // app is empty
-        end(404);
-      }
-    })();
 
-    function next(error) {
-      if (!error) {
-        callWithoutError(next);
-      } else {
-        callWithError(next, error);
-      }
-    }
-
-    // end request
-    function end(code, error) {
-      if (code == 500) {
-        if (next2) {
-          next2(error);
+        // end request
+        function end(code, error) {
+            if (code === 500) {
+                if (next2) {
+                    next2(error);
+                }
+                response.statusCode = code;
+                response.end();
+            } else if (code === 404) {
+                if (next2) {
+                    next2();
+                }
+                response.statusCode = code;
+                response.end("404 - Not Found");
+            }
         }
-        response.statusCode = code;
-        response.end();
-      } else if (code == 404) {
-        if (next2) {
-          next2();
+
+        function callWithoutError(next) {
+            for (; stackIndex < app.stack.length; stackIndex++) {
+                if (!isErrorHandler(app.stack[stackIndex].handle) &&
+                    app.stack[stackIndex].match(request.url)) {
+                    app.stack[stackIndex++].handle(request, response, next);
+                    return;
+                }
+            }
+            end(404);
         }
-        response.statusCode = code;
-        response.end("404 - Not Found");
-      }
-    }
 
-    function callWithoutError(next) {
-      for (; stackIndex < app.stack.length; stackIndex++) {
-        if (!isErrorHandler(app.stack[stackIndex].handle) &&
-            app.stack[stackIndex].match(request.url)) {
-          app.stack[stackIndex++].handle(request, response, next);
-          return;
+        function callWithError(next, error) {
+            for (; stackIndex < app.stack.length; stackIndex++) {
+                if (isErrorHandler(app.stack[stackIndex].handle) &&
+                    app.stack[stackIndex].match(request.url)) {
+                    app.stack[stackIndex++].handle(error, request, response, next);
+                    return;
+                }
+            }
+            end(500, error);
         }
-      }
-      end(404);
-    }
 
-    function callWithError(next, error) {
-      for (; stackIndex < app.stack.length; stackIndex++) {
-        if (isErrorHandler(app.stack[stackIndex].handle) &&
-            app.stack[stackIndex].match(request.url)) {
-          app.stack[stackIndex++].handle(error, request, response, next);
-          return;
+        function isErrorHandler(fn) {
+            return fn.length >= 4;
         }
-      }
-      end(500, error);
-    }
 
-    function isErrorHandler(fn) {
-      return fn.length >= 4;
-    }
+    }; // end of function app(request, response, next2);
 
-  } // end of function app(request, response, next2);
+    app.stack = [];
 
-  app.listen = function (port, done) {
-    var server =  http.createServer(app);
-    server.listen(port, done);
-    return server;
-  };
+    app.listen = function (port, done) {
+        var server =  http.createServer(app);
+        server.listen(port, done);
+        return server;
+    };
 
-  app.use = function (path, middleware) {
-    if (typeof path == 'function') {
-      middleware = path;
-      path = '/';
-    }
-    app.stack = app.stack || [];
-    app.stack.push(new Layer(path, middleware));
-  }
+    app.use = function (path, middleware) {
+        if (typeof path == 'function') {
+            middleware = path;
+            path = '/';
+        }
+        app.stack.push(new Layer(path, middleware));
+    };
 
-  return app;
-
-}; // end of function myexpress();
+    return app;
+}; // end of function express();
 
