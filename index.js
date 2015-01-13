@@ -31,12 +31,14 @@ function express() {
             if (code === 500) {
                 if (next2) {
                     next2(error);
+                    return;
                 }
                 response.statusCode = code;
                 response.end();
             } else if (code === 404) {
                 if (next2) {
                     next2();
+                    return;
                 }
                 response.statusCode = code;
                 response.end("404 - Not Found");
