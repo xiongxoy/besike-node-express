@@ -55,14 +55,13 @@ function express() {
 
         // end request
         function end(code, error) {
+          if (request.oldUrl) {
+            request.url = request.oldUrl;
+            delete request.oldUrl;
+          }
+
           if (code === 500) {
             if (next2) {
-              if (request.oldUrl) {
-              }
-              if (request.oldurl) {
-                request.url = request.oldUrl;
-                delete request.oldUrl;
-              }
               next2(error);
               return;
             }
@@ -70,10 +69,6 @@ function express() {
             response.end();
           } else if (code === 404) {
             if (next2) {
-              if (request.oldUrl) {
-                request.url = request.oldUrl;
-                delete request.oldUrl;
-              }
               next2();
               return;
             }
