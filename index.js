@@ -2,7 +2,9 @@ module.exports = express;
 
 var http = require('http');
 var Layer = require('./lib/layer.js');
+var makeRoute = require('./lib/route.js');
 var p2re = require("path-to-regexp");
+var methods = require('methods');
 
 function express() {
     'use strict';
@@ -12,7 +14,6 @@ function express() {
     };
 
     app.handle = function (request, response, next2) {
-
         var stackIndex;
         (function startApp() {
             request.params = {};
@@ -28,9 +29,8 @@ function express() {
           var m, target;
           for (; stackIndex < app.stack.length; stackIndex++) {
             target = app.stack[stackIndex];
-            if (isSame(isErrorHandler(target.handle), error) && (m = target.match(request.url))) {
-              request.params = m.params;
-              stackIndex++;
+            if ((isErrorHandler(target.handle) === Boolean(error))
+             && (m = target.match(request.url))) {
               // trim url
               if (isApp(target.handle)) {
                 request.oldUrl = request.url;
@@ -38,6 +38,8 @@ function express() {
                 request.url = request.url[0] === '/' ? request.url : '/' + request.url;
               }
               // call handle
+              request.params = m.params;
+              stackIndex++;
               if (error) {
                 target.handle(error, request, response, next);
               } else {
@@ -106,6 +108,18 @@ function express() {
         }
         app.stack.push(new Layer(path, middleware));
     };
+
+    methods.forEach(function (method) {
+      app[method] = function (path, handler) {
+          if (typeof path == 'function') {
+            middleware = path;
+            path = '/';
+          }
+          app.stack.push(new Layer(path,
+                                   makeRoute(method, handler),
+                                   {end: true}));
+      };
+    });
 
     return app;
 }; // end of function express();

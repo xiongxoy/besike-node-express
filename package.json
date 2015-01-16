@@ -17,6 +17,7 @@
   "author": "Zhou Xiong",
   "license": "MIT",
   "dependencies": {
+    "methods": "^0.1.0",
     "path-to-regexp": "^0.1.2"
   }
 }
