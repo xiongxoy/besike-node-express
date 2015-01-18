@@ -109,17 +109,19 @@ function express() {
         app.stack.push(new Layer(path, middleware));
     };
 
+    methods.push('all');
     methods.forEach(function (method) {
       app[method] = function (path, handler) {
-          if (typeof path == 'function') {
-            middleware = path;
-            path = '/';
-          }
-          app.stack.push(new Layer(path,
-                                   makeRoute(method, handler),
-                                   {end: true}));
+        app.route(path)[method](handler);
+        return app;
       };
     });
+
+    app.route = function (path) {
+      var route = makeRoute()
+      app.stack.push(new Layer(path, route, {end: true}));
+      return route;
+    }
 
     return app;
 }; // end of function express();
