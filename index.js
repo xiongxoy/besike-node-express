@@ -11,7 +11,31 @@ function express() {
     'use strict';
 
     var app = function (request, response, next2) {
-      app.handle(request, response, next2);
+      request.res = response;
+      response.req = request;
+
+      response.redirect = function (code, path) {
+        if (typeof code === 'string') {
+          path = code;
+          code = 302;
+        }
+        response.setHeader('Location', path);
+        response.setHeader('Content-length', 0);
+        response.statusCode = code;
+        response.end();
+      }
+
+      if (next2) {
+        var appParent = request.app;
+        request.app = app;
+        app.handle(request, response, function (err) {
+          request.app = appParent;
+          next2(err);
+        });
+      } else {
+        request.app = app;
+        app.handle(request, response, next2);
+      }
     };
 
     app.handle = function (request, response, next2) {
@@ -131,9 +155,17 @@ function express() {
       var route = makeRoute()
       app.stack.push(new Layer(path, route, {end: true}));
       return route;
-    }
+    };
 
+    app.monkey_patch = function (req, res) {
+      var req_proto = require('./lib/request.js');
+      req_proto.__proto__ = req.__proto__;
+      req.__proto__ = req_proto;
 
+      var res_proto = require('./lib/response.js');
+      res_proto.__proto__ = res.__proto__;
+      res.__proto__ = res_proto;
+    };
 
     return app;
 }; // end of function express();
