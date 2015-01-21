@@ -3,6 +3,7 @@ module.exports = express;
 var http = require('http');
 var Layer = require('./lib/layer.js');
 var makeRoute = require('./lib/route.js');
+var createInjector = require('./lib/injector.js');
 var p2re = require("path-to-regexp");
 var methods = require('methods');
 
@@ -94,12 +95,21 @@ function express() {
     }; // end of handle function (request, response, next2);
 
     app.stack = [];
+    app._factories = {};
+
+    app.factory = function (name, fn) {
+      app._factories[name] = fn;
+    }
 
     app.listen = function (port, done) {
         var server =  http.createServer(app);
         server.listen(port, done);
         return server;
     };
+
+    app.inject = function (handler) {
+      return createInjector(handler, app);
+    }
 
     app.use = function (path, middleware) {
         if (typeof path == 'function') {
@@ -122,6 +132,8 @@ function express() {
       app.stack.push(new Layer(path, route, {end: true}));
       return route;
     }
+
+
 
     return app;
 }; // end of function express();
