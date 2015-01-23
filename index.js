@@ -65,10 +65,14 @@ function express() {
               // call handle
               request.params = m.params;
               stackIndex++;
-              if (error) {
-                target.handle(error, request, response, next);
-              } else {
-                target.handle(request, response, next);
+              try {
+                if (error) {
+                  target.handle(error, request, response, next);
+                } else {
+                  target.handle(request, response, next);
+                }
+              } catch(error2) {
+                next(error2);
               }
               return;
             }
