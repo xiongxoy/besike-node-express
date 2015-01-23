@@ -11,9 +11,12 @@ function express() {
     'use strict';
 
     var app = function (request, response, next2) {
+      //FIXME adding the following line would result in errors, why?
+      //app.monkey_patch(request, response);
+      request.__proto__.isExpress = true;
+      response.__proto__.isExpress = true;
       request.res = response;
       response.req = request;
-
       response.redirect = function (code, path) {
         if (typeof code === 'string') {
           path = code;
@@ -23,7 +26,7 @@ function express() {
         response.setHeader('Content-length', 0);
         response.statusCode = code;
         response.end();
-      }
+      };
 
       if (next2) {
         var appParent = request.app;
@@ -50,6 +53,7 @@ function express() {
             }
         }());
 
+        // TODO fix error not handled.
         function next(error) {
           var m, target;
           for (; stackIndex < app.stack.length; stackIndex++) {
@@ -140,13 +144,14 @@ function express() {
     }
 
     app.use = function (path, middleware) {
-        if (typeof path == 'function') {
+        if (typeof path === 'function') {
             middleware = path;
             path = '/';
         }
-        app.stack.push(new Layer(path, middleware));
+        app.stack.push(new Layer(path, middleware, {end: false}));
     };
 
+    methods = methods.slice(0);
     methods.push('all');
     methods.forEach(function (method) {
       app[method] = function (path, handler) {
@@ -162,15 +167,32 @@ function express() {
     };
 
     app.monkey_patch = function (req, res) {
-      var req_proto = require('./lib/request.js');
-      req_proto.__proto__ = req.__proto__;
-      req.__proto__ = req_proto;
+      (function patch_request() {
+        var proto = require('./lib/request.js');
+        //proto.res = res;
+        proto.__proto__ = req.__proto__;
+        req.__proto__ = proto;
+      }());
 
-      var res_proto = require('./lib/response.js');
-      res_proto.__proto__ = res.__proto__;
-      res.__proto__ = res_proto;
+      (function patch_response() {
+        var proto = require('./lib/response.js');
+        //proto.req = req;
+        //proto.redirect =  function (code, path) {
+          //if (typeof code === 'string') {
+            //path = code;
+            //code = 302;
+          //}
+          //res.setHeader('Location', path);
+          //res.setHeader('Content-length', 0);
+          //res.statusCode = code;
+          //res.end();
+        //}
+        proto.__proto__ = res.__proto__;
+        res.__proto__ = proto;
+      }());
     };
 
     return app;
+
 }; // end of function express();
 
