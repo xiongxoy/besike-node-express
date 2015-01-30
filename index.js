@@ -6,109 +6,74 @@ var makeRoute = require('./lib/route.js');
 var createInjector = require('./lib/injector.js');
 var p2re = require("path-to-regexp");
 var methods = require('methods');
+var mime = require('mime');
+var accepts = require('accepts');
 
 function express() {
     'use strict';
 
-    var app = function (request, response, next2) {
-      //FIXME adding the following line would result in errors, why?
-      //app.monkey_patch(request, response);
-      request.__proto__.isExpress = true;
-      response.__proto__.isExpress = true;
-      request.res = response;
-      response.req = request;
-      response.redirect = function (code, path) {
-        if (typeof code === 'string') {
-          path = code;
-          code = 302;
-        }
-        response.setHeader('Location', path);
-        response.setHeader('Content-length', 0);
-        response.statusCode = code;
-        response.end();
-      };
+    var app = function (req, res, next2) {
+      app.monkey_patch(req, res);
 
       if (next2) {
-        var appParent = request.app;
-        request.app = app;
-        app.handle(request, response, function (err) {
-          request.app = appParent;
+        var appParent = req.app;
+        req.app = app;
+        app.handle(req, res, function (err) {
+          req.app = appParent;
           next2(err);
         });
       } else {
-        request.app = app;
-        app.handle(request, response, next2);
+        req.app = app;
+        app.handle(req, res, next2);
       }
     };
 
-    app.handle = function (request, response, next2) {
+    app.handle = function (req, res, next2) {
         var stackIndex;
         (function startApp() {
-            request.params = {};
+            req.params = {};
             stackIndex = 0; // index for stack
             try {
-                next();
+              next();
             } catch (error) {
-                end(500, error);
+                error.statusCode = error.statusCode || 500;
+                end(error);
             }
         }());
 
-        // TODO fix error not handled.
         function next(error) {
           var m, target;
           for (; stackIndex < app.stack.length; stackIndex++) {
             target = app.stack[stackIndex];
             if ((isErrorHandler(target.handle) === Boolean(error))
-             && (m = target.match(request.url))) {
-              // trim url
+             && (m = target.match(req.url))) {
               if (isApp(target.handle)) {
-                request.oldUrl = request.url;
-                request.url = request.url.slice(m.path.length);
-                request.url = request.url[0] === '/' ? request.url : '/' + request.url;
+                 // trim url
+                req.oldUrl = req.url;
+                req.url = req.url.slice(m.path.length);
+                req.url = req.url[0] === '/' ? req.url : '/' + req.url;
               }
               // call handle
-              request.params = m.params;
+              req.params = m.params;
               stackIndex++;
               try {
                 if (error) {
-                  target.handle(error, request, response, next);
+                  target.handle(error, req, res, next);
                 } else {
-                  target.handle(request, response, next);
+                  target.handle(req, res, next);
                 }
-              } catch(error2) {
+              } catch (error2) {
+                error2.statusCode = error2.statusCode || 500;
                 next(error2);
               }
               return;
             }
           }
           if (error) {
-            end(500, error);
+            error.statusCode = error.statusCode || 500;
+            end(error);
           } else {
             end(404);
-          }
-        }
-
-        // end request
-        function end(code, error) {
-          if (request.oldUrl) {
-            request.url = request.oldUrl;
-            delete request.oldUrl;
-          }
-
-          if (code === 500) {
-            if (next2) {
-              next2(error);
-              return;
-            }
-            response.statusCode = code;
-            response.end();
-          } else if (code === 404) {
-            if (next2) {
-              next2();
-              return;
-            }
-            response.statusCode = code;
-            response.end("404 - Not Found");
           }
         }
 
@@ -124,7 +89,36 @@ function express() {
             return fn.length >= 4;
         }
 
-    }; // end of handle function (request, response, next2);
+        // end req
+        function end(error) {
+
+          if (req.oldUrl) {
+            req.url = req.oldUrl;
+            delete req.oldUrl;
+          }
+
+          if (next2) {
+            if (error == 404) {
+              next2();
+            } else {
+              next2(error);
+            }
+            return;
+          }
+
+          if (typeof error == 'number') {
+            res.statusCode = error;
+            res.end();
+          } else if (error.statusCode) {
+            res.statusCode = error.statusCode;
+            res.end(error.toString());
+          } else {
+            res.statusCode = 500;
+            res.end(error.toString());
+          }
+        }
+
+    }; // end of handle function (req, res, next2);
 
     app.stack = [];
     app._factories = {};
@@ -168,25 +162,58 @@ function express() {
 
     app.monkey_patch = function (req, res) {
       (function patch_request() {
-        var proto = require('./lib/request.js');
-        //proto.res = res;
+        var proto = {};
+        proto.isExpress = true;
+        proto.res = res;
+
         proto.__proto__ = req.__proto__;
         req.__proto__ = proto;
       }());
 
+      // FIXME How to move the patch content to lib/request.js?
       (function patch_response() {
-        var proto = require('./lib/response.js');
-        //proto.req = req;
-        //proto.redirect =  function (code, path) {
-          //if (typeof code === 'string') {
-            //path = code;
-            //code = 302;
-          //}
-          //res.setHeader('Location', path);
-          //res.setHeader('Content-length', 0);
-          //res.statusCode = code;
-          //res.end();
-        //}
+        var proto = {};
+        proto.isExpress = true;
+        proto.req = req;
+
+        proto.redirect = function (code, path) {
+          if (typeof code === 'string') {
+            path = code;
+            code = 302;
+          }
+          res.setHeader('Location', path);
+          res.setHeader('Content-length', 0);
+          res.statusCode = code;
+          res.end();
+        };
+
+        proto.type = function (ext) {
+          res.setHeader('Content-Type', mime.lookup(ext));
+        };
+
+        proto.default_type = function (ext) {
+          var contentType = res.getHeader('Content-Type');
+          if (contentType) {
+            return;
+          } else {
+            res.type(ext);
+          }
+        }
+
+        var accept = accepts(req);
+        proto.format = function (o) {
+          var keys = Object.keys(o);
+          var type = accept.types(keys); // FIXME why must store type in a variable?
+          if (o[type]) {
+            res.setHeader('Content-Type', mime.lookup(type));
+            o[type]();
+          } else {
+            var err = new Error("Not Acceptable");
+            err.statusCode = 406;
+            throw err;
+          }
+        }
+
         proto.__proto__ = res.__proto__;
         res.__proto__ = proto;
       }());
