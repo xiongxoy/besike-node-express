@@ -214,6 +214,33 @@ function express() {
           }
         }
 
+        // add res.send
+        proto.send = function (code, content) {
+          if (typeof code != 'number') {
+            content = code;
+            code = 200;
+          } else {
+            if (!content) {
+              content = http.STATUS_CODES[code];
+            }
+          }
+          if (!res.getHeader('Content-Type')) {
+            if (content instanceof Buffer) {
+              res.setHeader('Content-Type', 'application/octet-stream');
+              res.setHeader('Content-Length', content.length);
+            } else if (typeof content == 'string' ||
+                       content instanceof String) { // TODO How to deal with String?
+              res.setHeader('Content-Type', 'text/html');
+              res.setHeader('Content-Length', Buffer.byteLength(content));
+            } else {
+              content = JSON.stringify(content);
+              res.setHeader('Content-Type', 'application/json');
+            }
+          }
+          res.statusCode = code;
+          res.end(content);
+        }
+
         proto.__proto__ = res.__proto__;
         res.__proto__ = proto;
       }());
