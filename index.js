@@ -8,6 +8,7 @@ var p2re = require("path-to-regexp");
 var methods = require('methods');
 var mime = require('mime');
 var accepts = require('accepts');
+var crc32 = require('buffer-crc32');
 
 function express() {
     'use strict';
@@ -216,14 +217,43 @@ function express() {
 
         // add res.send
         proto.send = function (code, content) {
+          var empty = false;
           if (typeof code != 'number') {
             content = code;
             code = 200;
-          } else {
-            if (!content) {
-              content = http.STATUS_CODES[code];
+          }
+          res.statusCode = code;
+
+          if (!content)  {
+            content = http.STATUS_CODES[code];
+            empty = true;
+          }
+
+          if (!empty && !res.getHeader('Etag') && req.method == 'GET') {
+            res.setHeader('Etag',  '"' + crc32.unsigned(content) + '"' );
+          }
+
+          // FIXME does caps matter?
+          if (this.req.headers["if-none-match"]) {
+            if ( this.req.headers["if-none-match"] == res.getHeader('Etag')) {
+              res.statusCode = 304;
+              res.end();
+            } else {
+              res.statusCode = 200;
             }
           }
+
+          if (this.req.headers['if-modified-since']) {
+            var date = new Date(this.req.headers['if-modified-since']);
+            var date_modified = new Date(res.getHeader('Last-Modified'));
+            if ( date < date_modified  ) {
+              res.statusCode = 200;
+            } else {
+              res.statusCode = 304;
+              res.end();
+            }
+          }
+
           if (!res.getHeader('Content-Type')) {
             if (content instanceof Buffer) {
               res.setHeader('Content-Type', 'application/octet-stream');
@@ -237,7 +267,7 @@ function express() {
               res.setHeader('Content-Type', 'application/json');
             }
           }
-          res.statusCode = code;
+
           res.end(content);
         }
 
