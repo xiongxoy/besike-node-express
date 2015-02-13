@@ -9,6 +9,7 @@ var methods = require('methods');
 var mime = require('mime');
 var accepts = require('accepts');
 var crc32 = require('buffer-crc32');
+var fs = require('fs');
 
 function express() {
     'use strict';
@@ -199,7 +200,7 @@ function express() {
           } else {
             res.type(ext);
           }
-        }
+        };
 
         var accept = accepts(req);
         proto.format = function (o) {
@@ -213,7 +214,7 @@ function express() {
             err.statusCode = 406;
             throw err;
           }
-        }
+        };
 
         // add res.send
         proto.send = function (code, content) {
@@ -233,7 +234,7 @@ function express() {
             res.setHeader('Etag',  '"' + crc32.unsigned(content) + '"' );
           }
 
-          // FIXME does caps matter?
+          // 'if-none-match' must be lower case?
           if (this.req.headers["if-none-match"]) {
             if ( this.req.headers["if-none-match"] == res.getHeader('Etag')) {
               res.statusCode = 304;
@@ -269,7 +270,53 @@ function express() {
           }
 
           res.end(content);
-        }
+        };
+
+        proto.stream = function (stream) {
+          //console.log(req.method);
+          //FIXME Why the HEAD request would have empty body.
+          stream.pipe(res);
+        };
+
+        proto.sendfile = function(file_path, options) {
+          var path = require('path');
+          var fs = require('fs');
+
+          if (options && options.root) {
+            file_path = path.normalize(options.root + file_path);
+          }
+
+          var stats = null;
+          try {
+            stats = fs.statSync(file_path);
+          } catch(e) {
+            stats = null;
+          }
+
+          (function check_path() {
+            function end(code) {
+              res.statusCode = code;
+              res.end();
+            }
+            if (file_path.indexOf('..') >= 0) {
+              end(403);
+            }
+            else if (!stats) {
+              end(404);
+            } else if (stats.isDirectory()) {
+              end(403);
+            } else {
+              ;
+            }
+          }());
+
+          this.setHeader('Content-Length', stats.size);
+          this.type(file_path);
+
+          var stream = fs.createReadStream(file_path);
+          stream.pipe(res);
+        };
+
 
         proto.__proto__ = res.__proto__;
         res.__proto__ = proto;
