@@ -21,6 +21,7 @@
     "buffer-crc32": "^0.2.1",
     "methods": "^0.1.0",
     "mime": "^1.2.11",
-    "path-to-regexp": "^0.1.2"
+    "path-to-regexp": "^0.1.2",
+    "range-parser": "^1.0.0"
   }
 }
